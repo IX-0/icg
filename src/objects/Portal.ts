@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
-import { physicsSystem } from '../physics/PhysicsSystem';
+import { physicsSystem } from '../engine/PhysicsSystem';
 import { PORTAL_CONFIG } from '../config/PortalConfig';
+import { IPortal } from '../interfaces/IPortal';
 
 export interface PortalOptions {
   color: number;
@@ -9,9 +10,10 @@ export interface PortalOptions {
   height: number;
 }
 
-export default class Portal {
+export default class Portal implements IPortal {
   public mesh: THREE.Group;
-  public destination: Portal | null = null;
+  public destination: IPortal | null = null;
+  public onTraversed?: (isPlayer: boolean) => void;
   public width: number;
   public height: number;
   public renderTarget: THREE.WebGLRenderTarget;
@@ -97,6 +99,10 @@ export default class Portal {
     this.casingGroup.add(backPlate);
   }
 
+  public update(_dt: number): void {
+    // Optional: add logic for portal animations or effects
+  }
+ 
   public initPhysics(): void {
     if (!physicsSystem.world || !this.mesh) return;
     if (this.rigidBody) return; // Avoid duplicate physics bodies

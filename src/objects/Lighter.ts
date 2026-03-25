@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { Grabbable } from './Grabbable';
 import TikiTorch from './TikiTorch';
-import { physicsSystem } from '../physics/PhysicsSystem';
+import { physicsSystem } from '../engine/PhysicsSystem';
 
 export default class Lighter extends Grabbable {
   public mesh: THREE.Group;
@@ -35,6 +35,7 @@ export default class Lighter extends Grabbable {
   }
 
   public initPhysics(): void {
+    if (!physicsSystem.world) return;
     const { body, collider } = physicsSystem.addDynamicPrimitive(this.mesh, 'box', [0.1, 0.225, 0.05]);
     this.rigidBody = body;
     this.collider = collider;

@@ -1,7 +1,8 @@
 import * as THREE from 'three';
 import LightingSystem from '../world/LightingSystem';
-
-export default class DebugManager {
+import { IUpdatable } from '../interfaces/IUpdatable';
+ 
+export default class DebugManager implements IUpdatable {
   private scene: THREE.Scene;
   private lighting: LightingSystem;
 
@@ -77,7 +78,7 @@ export default class DebugManager {
     }
   }
 
-  public update(): void {
+  public update(_dt: number): void {
     if (this.sunHelper) this.sunHelper.update();
     if (this.moonHelper) this.moonHelper.update();
     if (this.shadowHelper) this.shadowHelper.update();

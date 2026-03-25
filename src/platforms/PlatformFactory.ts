@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import Chest from '../objects/Chest';
+import TriggerZone from '../world/TriggerZone';
 
 export type PlatformConfig = {
   index: number;
@@ -203,5 +205,15 @@ export default class PlatformFactory {
     button.position.set(0, 1, 0);
     (button as any).userData = { type: 'button', interactive: true };
     return button;
+  }
+ 
+  createChest(position: THREE.Vector3, contents: any = null) {
+    const chest = new Chest(contents);
+    chest.mesh.position.copy(position);
+    return chest;
+  }
+ 
+  createTriggerZone(position: THREE.Vector3, radius: number = 2.0, color: number = 0x00ff00) {
+    return new TriggerZone(position, radius, color);
   }
 }

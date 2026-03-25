@@ -1,9 +1,10 @@
 import * as THREE from 'three';
 // @ts-ignore
 import { Water } from 'three/examples/jsm/objects/Water.js';
-import { physicsSystem } from '../physics/PhysicsSystem';
+import { physicsSystem } from '../engine/PhysicsSystem';
+import { IUpdatable } from '../interfaces/IUpdatable';
 
-export default class WaterSystem {
+export default class WaterSystem implements IUpdatable {
   scene: THREE.Scene;
   water: any;
   seabed: THREE.Mesh | null = null;
@@ -56,9 +57,9 @@ export default class WaterSystem {
     this.scene.add(this.water);
   }
 
-  public update(deltaTime: number): void {
+  public update(dt: number): void {
     if (this.water) {
-      this.water.material.uniforms['time'].value += deltaTime * this.TIME_SCALE;
+      this.water.material.uniforms['time'].value += dt * this.TIME_SCALE;
     }
   }
 

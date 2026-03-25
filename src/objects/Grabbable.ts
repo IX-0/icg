@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { IGrabbable } from '../interfaces/IGrabbable';
 import { IUpdatable } from '../interfaces/IUpdatable';
 import RAPIER from '@dimforge/rapier3d-compat';
-import { physicsSystem } from '../physics/PhysicsSystem';
+import { physicsSystem } from '../engine/PhysicsSystem';
 
 export abstract class Grabbable implements IGrabbable, IUpdatable {
   public abstract mesh: THREE.Object3D;

@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { Grabbable } from './Grabbable';
-import { physicsSystem } from '../physics/PhysicsSystem';
+import { physicsSystem } from '../engine/PhysicsSystem';
 
 export default class TikiTorch extends Grabbable {
   public mesh: THREE.Group;
@@ -39,6 +39,7 @@ export default class TikiTorch extends Grabbable {
   }
 
   public initPhysics(): void {
+    if (!physicsSystem.world) return;
     // Total physical height 2.2 units
     const { body, collider } = physicsSystem.addDynamicPrimitive(this.mesh, 'cylinder', [1.1, 0.2]);
     this.rigidBody = body;
@@ -62,6 +63,10 @@ export default class TikiTorch extends Grabbable {
 
   public onUse(): void {
     this.toggleLit();
+  }
+
+  public getIsLit(): boolean {
+    return this.isLit;
   }
 
   public toggleLit(): void {

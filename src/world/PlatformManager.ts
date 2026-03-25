@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import PlatformFactory, { PlatformConfig } from '../platforms/PlatformFactory';
 import GameState from '../state/GameState';
-import { physicsSystem } from '../physics/PhysicsSystem';
+import { physicsSystem } from '../engine/PhysicsSystem';
 import type RAPIER from '@dimforge/rapier3d-compat';
 
 export default class PlatformManager {
@@ -36,27 +36,16 @@ export default class PlatformManager {
 
     // runtime stub: create a simple box as platform and a button object
     const platformMesh = this.factory.createPlatformMesh(platformConfig);
-    platformMesh.position.y = -3.5;
+    platformMesh.position.y = -platformConfig.height / 2;
     this.scene.add(platformMesh);
     this.activePlatforms.push(platformMesh);
-
-    const props = this.factory.createProps(platformConfig) || [];
-    props.forEach((p) => {
-      this.scene.add(p);
-      this.activePlatforms.push(p);
-    });
-
-    const button = this.factory.createButton(platformConfig);
-    button.userData = { interactive: true, type: 'button' };
-    this.scene.add(button);
-    this.activePlatforms.push(button);
 
     // If physics is already running, initialize the meshes right away
     if (physicsSystem.world) {
       this.initPhysics();
     }
 
-    return { mesh: platformMesh, props, button, config: platformConfig };
+    return { mesh: platformMesh, config: platformConfig };
   }
 
   initPhysics() {

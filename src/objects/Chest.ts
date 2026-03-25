@@ -1,96 +1,80 @@
 import * as THREE from 'three';
 import { Interactable } from './Interactable';
-import Player from '../player/Player';
 import { IGrabbable } from '../interfaces/IGrabbable';
-import { physicsSystem } from '../physics/PhysicsSystem';
+import { physicsSystem } from '../engine/PhysicsSystem';
+import Player from '../player/Player';
 
+/**
+ * A container that can be opened to reveal an item.
+ */
 export default class Chest extends Interactable {
   public mesh: THREE.Group;
   private lid: THREE.Group;
-  
   private isOpen: boolean = false;
-  private lidAngle: number = 0;
-  private targetAngle: number = 0;
+  private isOpening: boolean = false;
+  private openProgress: number = 0;
+  
+  private contents: any | null = null;
+  private spawnedItem: boolean = false;
 
-  constructor() {
+  /** Callback when the chest is opened. */
+  public onOpen?: (item: any) => void;
+
+  constructor(contents: any = null) {
     super();
+    this.contents = contents;
     this.mesh = new THREE.Group();
-
-    // Box dimensions
-    const width = 1.0;
-    const height = 0.6;
-    const depth = 0.8;
-    const thick = 0.05;
-
-    const baseMat = new THREE.MeshStandardMaterial({ color: 0x5c4033, roughness: 0.8 }); // Brown wood
-    const lidMat = new THREE.MeshStandardMaterial({ color: 0x3d271d, roughness: 0.8 }); // Darker brown wood
-
-    // Create hollow base using thin box meshes
-    const base = new THREE.Group();
     
-    const bottom = new THREE.Mesh(new THREE.BoxGeometry(width, thick, depth), baseMat);
-    bottom.position.y = thick / 2;
-    base.add(bottom);
-
-    const front = new THREE.Mesh(new THREE.BoxGeometry(width, height, thick), baseMat);
-    front.position.set(0, height / 2, depth / 2 - thick / 2);
-    base.add(front);
-
-    const back = new THREE.Mesh(new THREE.BoxGeometry(width, height, thick), baseMat);
-    back.position.set(0, height / 2, -depth / 2 + thick / 2);
-    base.add(back);
-
-    const left = new THREE.Mesh(new THREE.BoxGeometry(thick, height, depth - thick * 2), baseMat);
-    left.position.set(-width / 2 + thick / 2, height / 2, 0);
-    base.add(left);
-
-    const right = new THREE.Mesh(new THREE.BoxGeometry(thick, height, depth - thick * 2), baseMat);
-    right.position.set(width / 2 - thick / 2, height / 2, 0);
-    base.add(right);
-
+    // Base
+    const baseGeo = new THREE.BoxGeometry(1.2, 0.6, 0.8);
+    const baseMat = new THREE.MeshStandardMaterial({ color: 0x5d4037 });
+    const base = new THREE.Mesh(baseGeo, baseMat);
+    base.position.y = 0.3;
     this.mesh.add(base);
 
-    // Lid hinge mechanism
+    // Lid
     this.lid = new THREE.Group();
-    this.lid.position.set(0, height, -depth / 2 + thick / 2); // Hinge at the back-top inside
-    
-    const lidMesh = new THREE.Mesh(new THREE.BoxGeometry(width, thick, depth), lidMat);
-    lidMesh.position.set(0, thick / 2, depth / 2 - thick / 2); 
+    const lidGeo = new THREE.BoxGeometry(1.25, 0.2, 0.85);
+    const lidMat = new THREE.MeshStandardMaterial({ color: 0x3e2723 });
+    const lidMesh = new THREE.Mesh(lidGeo, lidMat);
+    lidMesh.position.z = -0.425; // pivot at back
+    lidMesh.position.y = 0.1;
     this.lid.add(lidMesh);
-
-    // Lock mechanism
-    const lockMat = new THREE.MeshStandardMaterial({ color: 0xaaaaaa, metalness: 0.8, roughness: 0.2 }); // Metal
-    const lockMesh = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.15, 0.05), lockMat);
-    lockMesh.position.set(0, -0.05, depth - thick); // On the front lip of the lid
-    this.lid.add(lockMesh);
-
+    
+    this.lid.position.y = 0.6;
+    this.lid.position.z = 0.425;
     this.mesh.add(this.lid);
 
-    // Make all visual meshes interactable
-    this.mesh.traverse((child) => {
-      if (child instanceof THREE.Mesh) {
-        child.userData = { interactable: true, instance: this };
-      }
-    });
-
+    this.mesh.userData = { interactable: true, instance: this };
   }
 
   public initPhysics(): void {
-    // Width 1.0, Height 0.6, Depth 0.8 => half-extents = [0.5, 0.3, 0.4]
-    // chest base sits on ground, its position was shifted y=0.5
-    physicsSystem.addFixedPrimitive(this.mesh, 'box', [0.5, 0.3, 0.4]);
+    if (!physicsSystem.world) return;
+    // Fixed collider for the chest base
+    physicsSystem.addFixedPrimitive(this.mesh, 'box', [0.6, 0.3, 0.4]);
   }
 
-  public onInteract(player: Player, heldItem: IGrabbable | null): void {
-    this.isOpen = !this.isOpen;
-    this.targetAngle = this.isOpen ? Math.PI * -0.6 : 0; // Swing backwards past 90 degrees
+  public onInteract(_player: Player, _heldItem: IGrabbable | null): void {
+    if (this.isOpen || this.isOpening) return;
+    this.isOpening = true;
   }
 
   public update(dt: number): void {
-    if (Math.abs(this.lidAngle - this.targetAngle) > 0.001) {
-      this.lidAngle += (this.targetAngle - this.lidAngle) * 5 * dt;
-      this.lid.rotation.x = this.lidAngle;
-      this.mesh.updateMatrixWorld();
+    if (this.isOpening) {
+      this.openProgress += dt * 2; // Open in 0.5s
+      if (this.openProgress >= 1) {
+        this.openProgress = 1;
+        this.isOpening = false;
+        this.isOpen = true;
+        this._onFullyOpen();
+      }
+      this.lid.rotation.x = -this.openProgress * Math.PI * 0.6;
     }
+  }
+
+  private _onFullyOpen(): void {
+    if (this.spawnedItem || !this.contents) return;
+    this.spawnedItem = true;
+    if (this.onOpen) this.onOpen(this.contents);
   }
 }

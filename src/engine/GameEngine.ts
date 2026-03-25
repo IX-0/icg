@@ -12,7 +12,7 @@ import Chest from '../objects/Chest';
 import { Interactable } from '../objects/Interactable';
 import { IGameController } from '../interfaces/IGameController';
 import { PORTAL_CONFIG } from '../config/PortalConfig';
-import { physicsSystem } from '../physics/PhysicsSystem';
+import { physicsSystem } from './PhysicsSystem';
 
 export default class GameEngine implements IGameController {
   renderer: THREE.WebGLRenderer;
@@ -52,7 +52,7 @@ export default class GameEngine implements IGameController {
 
     this.gameState = new GameState();
     this.world = new World(this.scene, this.camera, this.gameState);
-    this.player = new Player(this.camera, this.renderer.domElement);
+    this.player = new Player(this.scene, this.camera, this.renderer.domElement);
     this.ui = new UIManager(this.renderer, this);
     this.debugManager = new DebugManager(this.scene, this.world.lighting);
 
@@ -257,6 +257,7 @@ export default class GameEngine implements IGameController {
     // Spawn 2 units in front of player at height of player
     const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(this.player.camera.quaternion);
     const spawnPos = this.player.camera.position.clone().add(forward.multiplyScalar(2));
+    if (type === 'torch') spawnPos.y = 1.1; // Place at ground height
     obj.mesh.position.copy(spawnPos);
 
     this.scene.add(obj.mesh);
@@ -290,10 +291,8 @@ export default class GameEngine implements IGameController {
       
       this.renderer.render(this.scene, this.camera);
 
-      // Performance Stats
-      this.ui.updateFrameTime(dt);
-
-      this.ui.updateStats();
+      // Performance Stats & UI update
+      this.ui.update(dt);
       this.animate();
     });
   }
@@ -312,7 +311,7 @@ export default class GameEngine implements IGameController {
     this.interactables.forEach(i => i.update(dt));
 
     this.world.update(dt, this.player, this.grabbables);
-    this.debugManager.update();
+    this.debugManager.update(dt);
     this.ui.updateHUD(this.gameTimeHours);
     physicsSystem.update(dt);
   }

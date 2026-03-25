@@ -5,11 +5,13 @@ import WaterBucket from '../objects/WaterBucket';
 import Lighter from '../objects/Lighter';
 import { PHYSICS_CONFIG } from '../config/PhysicsConfig';
 import { PLAYER_CONFIG } from '../config/PlayerConfig';
-import { physicsSystem } from '../physics/PhysicsSystem';
+import { physicsSystem } from '../engine/PhysicsSystem';
 import RAPIER from '@dimforge/rapier3d-compat';
+import { IUpdatable } from '../interfaces/IUpdatable';
 
-export default class Player {
+export default class Player implements IUpdatable {
   camera: THREE.PerspectiveCamera;
+  public scene: THREE.Scene;
   public position: THREE.Vector3;
   public velocity: THREE.Vector3;
 
@@ -44,7 +46,8 @@ export default class Player {
   private isCrouching: boolean = false;
   private currentHeight: number = PLAYER_CONFIG.height;
 
-  constructor(camera: THREE.PerspectiveCamera, domElement: HTMLElement = document.body) {
+  constructor(scene: THREE.Scene, camera: THREE.PerspectiveCamera, domElement: HTMLElement = document.body) {
+    this.scene = scene;
     this.camera = camera;
     this.baseFov = camera.fov;
     this.domElement = domElement;
@@ -192,6 +195,7 @@ export default class Player {
     
     // 1. MUST detach from parent before setting world-space coordinates
     this.camera.remove(item.mesh);
+    this.scene.add(item.mesh);
  
     const MAX_PLACEMENT_REACH = 4.0;
     const ray = new RAPIER.Ray(this.camera.position, lookDir);
@@ -231,9 +235,9 @@ export default class Player {
     item.mesh.updateMatrixWorld(true);
   }
 
-  update(deltaTime: number): void {
+  update(dt: number): void {
     if (!this.isLocked) return;
-    const dt = Math.min(deltaTime, 0.1);
+    const finalDt = Math.min(dt, 0.1);
 
     // Look rotation with accumulation and interpolation (FPS Independent)
     this.targetYaw += this.mouseDeltaX;
@@ -245,67 +249,67 @@ export default class Player {
 
     // Smooth lerp: handles input consistently even at 10-20 FPS
     const lookSmoothSpeed = 30.0;
-    this.currentYaw += (this.targetYaw - this.currentYaw) * Math.min(1.0, lookSmoothSpeed * dt);
-    this.currentPitch += (this.targetPitch - this.currentPitch) * Math.min(1.0, lookSmoothSpeed * dt);
-
+    this.currentYaw += (this.targetYaw - this.currentYaw) * Math.min(1.0, lookSmoothSpeed * finalDt);
+    this.currentPitch += (this.targetPitch - this.currentPitch) * Math.min(1.0, lookSmoothSpeed * finalDt);
+ 
     this.camera.rotation.order = 'YXZ';
     this.camera.rotation.x = this.currentPitch;
     this.camera.rotation.y = this.currentYaw;
-
+ 
     const targetHeight = this.isCrouching ? this.CROUCH_HEIGHT : this.PLAYER_HEIGHT;
-    this.currentHeight += (targetHeight - this.currentHeight) * 15 * dt;
-
+    this.currentHeight += (targetHeight - this.currentHeight) * 15 * finalDt;
+ 
     const move = new THREE.Vector3();
-
+ 
     // Get direction relative to camera
     const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
     const right = new THREE.Vector3(1, 0, 0).applyQuaternion(this.camera.quaternion);
-
+ 
     // Project to XZ plane
     forward.y = 0;
     right.y = 0;
     forward.normalize();
     right.normalize();
-
+ 
     if (this.keys['KeyW'] || this.keys['ArrowUp']) move.add(forward);
     if (this.keys['KeyS'] || this.keys['ArrowDown']) move.add(forward.clone().negate());
     if (this.keys['KeyA'] || this.keys['ArrowLeft']) move.add(right.clone().negate());
     if (this.keys['KeyD'] || this.keys['ArrowRight']) move.add(right);
-
+ 
     if (move.lengthSq() > 0) move.normalize();
     move.multiplyScalar(this.isCrouching ? PLAYER_CONFIG.moveSpeed * 0.5 : PLAYER_CONFIG.moveSpeed);
-
-    this.velocity.y += (-PHYSICS_CONFIG.gravity) * dt;
-
+ 
+    this.velocity.y += (-PHYSICS_CONFIG.gravity) * finalDt;
+ 
     if (this.characterController && this.collider && this.playerBody) {
       const desiredTranslation = new THREE.Vector3(
-        move.x * dt,
-        this.velocity.y * dt,
-        move.z * dt
+        move.x * finalDt,
+        this.velocity.y * finalDt,
+        move.z * finalDt
       );
-
+ 
       this.characterController.computeColliderMovement(this.collider, desiredTranslation);
       const computedMove = this.characterController.computedMovement();
-
+ 
       const newPos = this.playerBody.translation();
       newPos.x += computedMove.x;
       newPos.y += computedMove.y;
       newPos.z += computedMove.z;
-
+ 
       this.playerBody.setNextKinematicTranslation(newPos);
-
+ 
       this.position.set(newPos.x, newPos.y, newPos.z);
-
+ 
       this.isOnGround = this.characterController.computedGrounded();
       if (this.isOnGround && this.velocity.y < 0) {
         this.velocity.y = 0;
       }
     } else {
       // Fallback
-      this.position.x += (move.x) * dt;
-      this.position.y += (this.velocity.y) * dt;
-      this.position.z += (move.z) * dt;
-
+      this.position.x += (move.x) * finalDt;
+      this.position.y += (this.velocity.y) * finalDt;
+      this.position.z += (move.z) * finalDt;
+ 
       const groundY = 0.5 + this.currentHeight;
       if (this.isOnGround && this.velocity.y <= 0) {
         this.position.y = groundY;
@@ -316,7 +320,7 @@ export default class Player {
         this.isOnGround = true;
       }
     }
-
+ 
     // Safety Reset: If fallen through world or launched to space
     if (this.position.y < -50 || this.position.y > 500) {
       console.error('Player out of bounds! Resetting position.', this.position.clone());
@@ -324,23 +328,23 @@ export default class Player {
       this.velocity.set(0, 0, 0);
       if (this.playerBody) this.playerBody.setTranslation({ x: 0, y: 10, z: 0 }, true);
     }
-
+ 
     // Since rigid body center is at translation, we need to offset camera slightly
     // If half height = 0.85, the center is y=0.85, eyes at top
     // For simplicity, just place camera exactly there for now, or offset by currentHeight / 2
     this.camera.position.copy(this.position);
     this.camera.position.y += (this.currentHeight / 2) - 0.2; // roughly eye level above center
-
+ 
     // Apply Warp Effect (FOV distortion and slight ripple)
     if (this.warpEffectTimer > 0) {
-      this.warpEffectTimer -= dt;
+      this.warpEffectTimer -= finalDt;
       const t = this.warpEffectTimer / 0.4; // 1 to 0
       const intensity = Math.sin(t * Math.PI); // Ease in and out
-
+ 
       // FOV Pulse
       this.camera.fov = this.baseFov + intensity * 12;
       this.camera.updateProjectionMatrix();
-
+ 
       // Position ripple (Z-axis wobble to hide the jump)
       const ripple = Math.sin(t * 30) * 0.1 * intensity;
       this.camera.position.z += ripple;
@@ -350,9 +354,9 @@ export default class Player {
       this.camera.fov = this.baseFov;
       this.camera.updateProjectionMatrix();
     }
-
+ 
     if (this.heldItem) {
-      this.heldItem.update(dt);
+      this.heldItem.update(finalDt);
     }
   }
 

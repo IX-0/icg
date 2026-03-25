@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import Player from '../player/Player';
+import { physicsSystem } from '../engine/PhysicsSystem';
 import { IInteractable } from '../interfaces/IInteractable';
 import { IUpdatable } from '../interfaces/IUpdatable';
 import { IGrabbable } from '../interfaces/IGrabbable';

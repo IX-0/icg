@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { Grabbable } from './Grabbable';
 import TikiTorch from './TikiTorch';
-import { physicsSystem } from '../physics/PhysicsSystem';
+import { physicsSystem } from '../engine/PhysicsSystem';
 
 export default class WaterBucket extends Grabbable {
   public mesh: THREE.Group;

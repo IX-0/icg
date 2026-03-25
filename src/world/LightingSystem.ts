@@ -5,7 +5,6 @@ export default class LightingSystem {
   scene: THREE.Scene;
   sunLight: THREE.DirectionalLight;
   ambientLight: THREE.AmbientLight;
-  pointLight: THREE.PointLight;
   hemisphereLight: THREE.HemisphereLight;
   moonLight: THREE.DirectionalLight;
   moonPhaseLight: THREE.DirectionalLight;

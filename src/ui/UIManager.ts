@@ -8,11 +8,13 @@ import { PHYSICS_CONFIG, resetPhysicsConfig } from '../config/PhysicsConfig';
 import { PORTAL_CONFIG, resetPortalConfig } from '../config/PortalConfig';
 import { PLAYER_CONFIG, resetPlayerConfig } from '../config/PlayerConfig';
 import { IGameController } from '../interfaces/IGameController';
-
-export default class UIManager {
+import { IUpdatable } from '../interfaces/IUpdatable';
+ 
+export default class UIManager implements IUpdatable {
   private gui: GUI;
   private stats: Stats;
   private msLabel: HTMLDivElement;
+  private objectiveLabel: HTMLDivElement;
 
   // Callbacks
   public onTimeChange?: (h: number) => void;
@@ -88,11 +90,43 @@ export default class UIManager {
     this.msLabel.innerText = '0.00 ms';
     document.body.appendChild(this.msLabel);
 
+    this.objectiveLabel = document.createElement('div');
+    Object.assign(this.objectiveLabel.style, {
+      position: 'fixed',
+      top: '20px',
+      left: '50%',
+      transform: 'translateX(-50%)',
+      padding: '10px 25px',
+      fontFamily: "'Cinzel', serif",
+      fontSize: '18px',
+      color: '#fff',
+      background: 'rgba(0, 5, 20, 0.7)',
+      backdropFilter: 'blur(10px)',
+      border: '1px solid rgba(80, 140, 220, 0.3)',
+      borderRadius: '4px',
+      letterSpacing: '2px',
+      textShadow: '0 0 10px rgba(0, 150, 255, 0.5)',
+      pointerEvents: 'none',
+      zIndex: '200',
+      display: 'none',
+      textAlign: 'center'
+    });
+    document.body.appendChild(this.objectiveLabel);
+
     this._setupGUI();
   }
 
   private _cfg(): void {
     if (this.onConfigChange) this.onConfigChange();
+  }
+
+  public updateObjective(text: string): void {
+    if (text) {
+      this.objectiveLabel.innerText = text;
+      this.objectiveLabel.style.display = 'block';
+    } else {
+      this.objectiveLabel.style.display = 'none';
+    }
   }
 
   private _setupGUI(): void {
@@ -277,8 +311,13 @@ export default class UIManager {
     refresh(this.gui);
   }
 
+  public update(dt: number): void {
+    this.stats.update();
+    this.msLabel.innerText = `${(dt * 1000).toFixed(2)} ms`;
+  }
+ 
   updateStats(): void { this.stats.update(); }
-
+ 
   updateFrameTime(dt: number): void {
     this.msLabel.innerText = `${(dt * 1000).toFixed(2)} ms`;
   }

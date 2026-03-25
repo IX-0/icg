@@ -1,11 +1,13 @@
 import * as THREE from 'three';
-import Portal from './Portal';
+import Portal from '../objects/Portal';
+import { IPortal } from '../interfaces/IPortal';
+import { IPortalSystem } from '../interfaces/IPortalSystem';
 import Player from '../player/Player';
 import { Grabbable } from '../objects/Grabbable';
 import { PORTAL_CONFIG } from '../config/PortalConfig';
 import * as CameraUtils from 'three/examples/jsm/utils/CameraUtils.js';
 
-export default class PortalSystem {
+export default class PortalSystem implements IPortalSystem {
   public portals: Portal[] = [];
   public portalCamera: THREE.PerspectiveCamera;
   private scene: THREE.Scene;
@@ -38,8 +40,9 @@ export default class PortalSystem {
   public addPortalPair(
     posA: THREE.Vector3, rotA: THREE.Euler, colorA: number,
     posB: THREE.Vector3, rotB: THREE.Euler, colorB: number,
-    width: number = 2.5, height: number = 3.5
-  ): Portal[] {
+    width: number = 2.5, height: number = 3.5,
+    onTraversed?: (isPlayer: boolean) => void
+  ): IPortal[] {
     const p1 = new Portal({ color: colorA, width, height });
     p1.setPosition(posA);
     p1.setRotation(rotA);
@@ -52,6 +55,8 @@ export default class PortalSystem {
 
     p1.destination = p2;
     p2.destination = p1;
+    p1.onTraversed = onTraversed;
+    p2.onTraversed = onTraversed;
 
     this.portals.push(p1, p2);
     this.scene.add(p1.mesh);
@@ -64,7 +69,11 @@ export default class PortalSystem {
     return [p1, p2];
   }
 
-  public update(player: Player, grabbables: Grabbable[] = []): void {
+  public update(_dt: number): void {
+    // Standard IUpdatable update, potentially handle internal system logic here
+  }
+
+  public updateSystem(player: Player, grabbables: Grabbable[] = []): void {
     const currPos = player.position.clone();
 
     for (const p of this.portals) {
@@ -77,7 +86,7 @@ export default class PortalSystem {
       // Trigger teleport early based on config to prevent near-plane clipping
       if (localPrev.z > PORTAL_CONFIG.teleportThreshold && localCurr.z <= PORTAL_CONFIG.teleportThreshold && Math.abs(localPrev.z) < 1.5) {
         if (Math.abs(localCurr.x) < p.width / 2 && Math.abs(localCurr.y) < p.height / 2 + 1) {
-          this._teleportPlayer(player, p, p.destination, localCurr);
+          this._teleportPlayer(player, p, p.destination as unknown as Portal, localCurr);
           break;
         }
       }
@@ -99,7 +108,7 @@ export default class PortalSystem {
         // Only teleport when crossing the threshold from front to back
         if (localPrev.z > PORTAL_CONFIG.teleportThreshold && localCurr.z <= PORTAL_CONFIG.teleportThreshold && Math.abs(localPrev.z) < 1.5) {
           if (Math.abs(localCurr.x) < p.width / 2 && Math.abs(localCurr.y) < p.height / 2 + 1) {
-            this._teleportGrabbable(g, p, p.destination, localCurr);
+            this._teleportGrabbable(g, p, p.destination as unknown as Portal, localCurr);
             break;
           }
         }
@@ -136,6 +145,9 @@ export default class PortalSystem {
 
     // Sync prevPlayerPos
     this.prevPlayerPos.copy(player.position);
+    
+    // Fire callback
+    if (from.onTraversed) from.onTraversed(true);
   }
 
   private _teleportGrabbable(g: Grabbable, from: Portal, to: Portal, localCurr: THREE.Vector3): void {
@@ -189,6 +201,9 @@ export default class PortalSystem {
     if (g.mesh.userData.prevPos) {
       g.mesh.userData.prevPos.copy(exitWorldPos);
     }
+    
+    // Fire callback
+    if (from.onTraversed) from.onTraversed(false);
   }
 
   public render(renderer: THREE.WebGLRenderer, scene: THREE.Scene, mainCamera: THREE.PerspectiveCamera, environment?: any): void {
@@ -229,7 +244,7 @@ export default class PortalSystem {
       p.updateRenderTarget(Math.sqrt(flatDistSq));
 
       // Render pass
-      this._renderPortal(p, p.destination, renderer, scene, mainCamera, environment);
+      this._renderPortal(p, p.destination as unknown as Portal, renderer, scene, mainCamera, environment);
     }
 
     renderer.xr.enabled = currentXrEnabled;
