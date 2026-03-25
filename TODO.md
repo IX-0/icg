@@ -13,10 +13,5 @@
 - [ ] **Prop Population**: Add game-specific assets (foliage, crates, ruins) to the platforms to fill the scene.
 
 ## UI & HUD
-- [ ] **Crosshair**: Add a central reticle for better interaction aiming.
+- [ ] **Crosshair**: Improve crossair. Its kinda funky right now.
 - [ ] **Interaction Prompts**: "Press [E] to interact" tooltips when hovering over interactable objects.
-- [ ] **Inventory System**: Basic backend and UI for tracking collected items.
-
-## Optimization & Polish
-- [ ] **LOD System**: Implement Level of Detail for distant platform props.
-- [ ] **Texture Compression**: Optimize moon and water normal maps for faster initial load.
