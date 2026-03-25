@@ -1,8 +1,9 @@
 import * as THREE from 'three';
 import RAPIER from '@dimforge/rapier3d-compat';
+import { IUpdatable } from '../interfaces/IUpdatable';
 import { PHYSICS_CONFIG } from '../config/PhysicsConfig';
 
-export class PhysicsSystem {
+export class PhysicsSystem implements IUpdatable {
   public world!: RAPIER.World;
   private isInitialized: boolean = false;
 
