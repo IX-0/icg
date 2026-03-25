@@ -278,7 +278,10 @@ export default class UIManager implements IUpdatable {
       'Tiki Torch': 'torch',
       'Lighter': 'lighter',
       'Water Bucket': 'bucket',
-      'Chest': 'chest'
+      'Chest': 'chest',
+      'Crown': 'crown',
+      'Skeleton': 'skeleton',
+      'Gardening Hoe': 'hoe'
     }).name('Item to Spawn');
 
     objects.add({

@@ -9,6 +9,9 @@ import TikiTorch from '../objects/TikiTorch';
 import Lighter from '../objects/Lighter';
 import WaterBucket from '../objects/WaterBucket';
 import Chest from '../objects/Chest';
+import Skeleton from '../objects/Skeleton';
+import Crown from '../objects/Crown';
+import GardeningHoe from '../objects/GardeningHoe';
 import { Interactable } from '../objects/Interactable';
 import { IGameController } from '../interfaces/IGameController';
 import { PORTAL_CONFIG } from '../config/PortalConfig';
@@ -248,10 +251,27 @@ export default class GameEngine implements IGameController {
       return;
     }
 
+    else if (type === 'skeleton') {
+      const skeleton = new Skeleton();
+      const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(this.player.camera.quaternion);
+      forward.y = 0; forward.normalize();
+      const spawnPos = this.player.position.clone().add(forward.multiplyScalar(3));
+      spawnPos.y = 0.1;
+      skeleton.mesh.position.copy(spawnPos);
+      skeleton.mesh.lookAt(this.player.position.x, 0.1, this.player.position.z);
+      this.scene.add(skeleton.mesh);
+      this.world.interaction.registerInteractive(skeleton.mesh);
+      this.interactables.push(skeleton);
+      skeleton.initPhysics();
+      return;
+    }
+
     let obj: any = null;
     if (type === 'torch') obj = new TikiTorch();
     else if (type === 'lighter') obj = new Lighter();
     else if (type === 'bucket') obj = new WaterBucket();
+    else if (type === 'crown') obj = new Crown();
+    else if (type === 'hoe') obj = new GardeningHoe();
     if (!obj) return;
 
     // Spawn 2 units in front of player at height of player

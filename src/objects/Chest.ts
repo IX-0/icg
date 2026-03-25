@@ -72,8 +72,25 @@ export default class Chest extends Interactable {
     }
   }
 
+  public setOpen(open: boolean, immediate: boolean = false): void {
+    this.isOpen = open;
+    if (immediate) {
+      this.openProgress = open ? 1 : 0;
+      this.isOpening = false;
+      this.lid.rotation.x = -this.openProgress * Math.PI * 0.6;
+      if (open) this.spawnedItem = true;
+    } else if (open && !this.isOpening) {
+      this.isOpening = true;
+    }
+  }
+
+  public getIsOpen(): boolean {
+    return this.isOpen;
+  }
+
   private _onFullyOpen(): void {
     if (this.spawnedItem || !this.contents) return;
+    this.isOpen = true; // Ensure it's marked as open
     this.spawnedItem = true;
     if (this.onOpen) this.onOpen(this.contents);
   }
