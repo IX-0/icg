@@ -7,15 +7,22 @@ import RAPIER from '@dimforge/rapier3d-compat';
 
 export default class Player {
   camera: THREE.PerspectiveCamera;
-  position: THREE.Vector3;
-  velocity: THREE.Vector3;
+  public position: THREE.Vector3;
+  public velocity: THREE.Vector3;
 
-  public yaw: number = 0;
-  private pitch: number = 0;
-  private keys: Record<string, boolean> = {};
+  private keys: { [key: string]: boolean } = {};
   private isOnGround: boolean = true;
   private isLocked: boolean = false;
   private domElement: HTMLElement;
+  
+  // Custom Smooth Look
+  private targetPitch: number = 0;
+  private targetYaw: number = 0;
+  private currentPitch: number = 0;
+  private currentYaw: number = 0;
+  private mouseDeltaX: number = 0;
+  private mouseDeltaY: number = 0;
+  
   public heldItem: Grabbable | null = null;
   public playerBody: RAPIER.RigidBody | null = null;
   public collider: RAPIER.Collider | null = null;
@@ -41,6 +48,9 @@ export default class Player {
     this.position = new THREE.Vector3(0, PLAYER_CONFIG.height + 0.5, 0);
     this.velocity = new THREE.Vector3();
     this.camera.position.copy(this.position);
+
+    this.camera.position.copy(this.position);
+ 
     this._initPointerLock();
     this._initKeyboard();
   }
@@ -64,31 +74,33 @@ export default class Player {
   }
 
   private _initPointerLock(): void {
-    document.addEventListener('pointerlockchange', () => {
+    const onPointerLockChange = () => {
       this.isLocked = document.pointerLockElement === this.domElement;
-
+ 
       const instructions = document.getElementById('instructions');
-      if (instructions) {
-        instructions.style.display = this.isLocked ? 'none' : 'flex';
-      }
-
+      if (instructions) instructions.style.display = this.isLocked ? 'none' : 'flex';
+ 
       const startBtn = document.getElementById('start-btn');
-      if (startBtn && !this.isLocked) {
-        startBtn.innerText = 'Resume Game';
+      if (startBtn && !this.isLocked) startBtn.innerText = 'Resume Game';
+      
+      // Sync Euler targets to current rotation when locking
+      if (this.isLocked) {
+        this.currentYaw = this.targetYaw = this.camera.rotation.y;
+        this.currentPitch = this.targetPitch = this.camera.rotation.x;
       }
-    });
-
+    };
+ 
+    document.addEventListener('pointerlockchange', onPointerLockChange);
+ 
     this.domElement.addEventListener('click', () => {
-      // GameEngine handles initial click, but if we drop out we can click again
       if (!this.isLocked) this.domElement.requestPointerLock();
     });
+
     document.addEventListener('mousemove', (e: MouseEvent) => {
       if (!this.isLocked) return;
-      const sens = 0.002;
-      this.yaw -= e.movementX * sens;
-      this.pitch -= e.movementY * sens;
-      this.pitch = Math.max(-Math.PI / 2.1, Math.min(Math.PI / 2.1, this.pitch));
-      this.camera.quaternion.setFromEuler(new THREE.Euler(this.pitch, this.yaw, 0, 'YXZ'));
+      const sensitivity = 0.002;
+      this.mouseDeltaX -= e.movementX * sensitivity;
+      this.mouseDeltaY -= e.movementY * sensitivity;
     });
   }
 
@@ -116,11 +128,14 @@ export default class Player {
     this.camera.position.copy(this.position);
   }
 
-  teleport(pos: THREE.Vector3, deltaYaw: number): void {
+  public teleport(pos: THREE.Vector3, deltaYaw: number): void {
     this.position.copy(pos);
-    this.yaw += deltaYaw;
+ 
+    this.targetYaw += deltaYaw;
+    this.currentYaw += deltaYaw;
+    this.camera.rotation.y = this.currentYaw;
+    
     this.camera.position.copy(this.position);
-    this.camera.quaternion.setFromEuler(new THREE.Euler(this.pitch, this.yaw, 0, 'YXZ'));
     if (this.playerBody) {
       this.playerBody.setTranslation(pos, true);
     }
@@ -153,8 +168,13 @@ export default class Player {
     this.heldItem = null;
 
     // Reconstruct current movement velocity since Player only stores Y velocity persistently
-    const forwardVec = new THREE.Vector3(-Math.sin(this.yaw), 0, -Math.cos(this.yaw));
-    const rightVec = new THREE.Vector3(Math.cos(this.yaw), 0, -Math.sin(this.yaw));
+    const forwardVec = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
+    const rightVec = new THREE.Vector3(1, 0, 0).applyQuaternion(this.camera.quaternion);
+    forwardVec.y = 0;
+    rightVec.y = 0;
+    forwardVec.normalize();
+    rightVec.normalize();
+
     const move = new THREE.Vector3();
 
     if (this.keys['KeyW'] || this.keys['ArrowUp']) move.add(forwardVec);
@@ -201,12 +221,37 @@ export default class Player {
     if (!this.isLocked) return;
     const dt = Math.min(deltaTime, 0.1);
 
+    // Look rotation with accumulation and interpolation (FPS Independent)
+    this.targetYaw += this.mouseDeltaX;
+    this.targetPitch += this.mouseDeltaY;
+    this.mouseDeltaX = 0;
+    this.mouseDeltaY = 0;
+
+    this.targetPitch = Math.max(-Math.PI / 2.1, Math.min(Math.PI / 2.1, this.targetPitch));
+
+    // Smooth lerp: handles input consistently even at 10-20 FPS
+    const lookSmoothSpeed = 30.0; 
+    this.currentYaw += (this.targetYaw - this.currentYaw) * Math.min(1.0, lookSmoothSpeed * dt);
+    this.currentPitch += (this.targetPitch - this.currentPitch) * Math.min(1.0, lookSmoothSpeed * dt);
+
+    this.camera.rotation.order = 'YXZ';
+    this.camera.rotation.x = this.currentPitch;
+    this.camera.rotation.y = this.currentYaw;
+ 
     const targetHeight = this.isCrouching ? this.CROUCH_HEIGHT : this.PLAYER_HEIGHT;
     this.currentHeight += (targetHeight - this.currentHeight) * 15 * dt;
 
-    const forward = new THREE.Vector3(-Math.sin(this.yaw), 0, -Math.cos(this.yaw));
-    const right = new THREE.Vector3(Math.cos(this.yaw), 0, -Math.sin(this.yaw));
     const move = new THREE.Vector3();
+
+    // Get direction relative to camera
+    const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(this.camera.quaternion);
+    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(this.camera.quaternion);
+
+    // Project to XZ plane
+    forward.y = 0;
+    right.y = 0;
+    forward.normalize();
+    right.normalize();
 
     if (this.keys['KeyW'] || this.keys['ArrowUp']) move.add(forward);
     if (this.keys['KeyS'] || this.keys['ArrowDown']) move.add(forward.clone().negate());

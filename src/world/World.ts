@@ -56,6 +56,10 @@ export default class World {
     return platform;
   }
 
+  public transitionPlatform(nextPlatformIndex: number): void {
+    this.loadPlatform(nextPlatformIndex);
+  }
+
   public initPhysics(): void {
     this.platformManager.initPhysics();
     this.portalSystem.initPhysics();

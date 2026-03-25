@@ -107,8 +107,8 @@ export default class GameEngine implements IGameController {
     const posB = p.position.clone().add(forward.clone().multiplyScalar(12));
 
     // Face each other on the player's axis
-    const rotA = new THREE.Euler(0, p.yaw + Math.PI, 0);
-    const rotB = new THREE.Euler(0, p.yaw, 0);
+    const rotA = new THREE.Euler(0, p.camera.rotation.y + Math.PI, 0);
+    const rotB = new THREE.Euler(0, p.camera.rotation.y, 0);
 
     // Sit on platform (assumed at Y=0.5)
     const portalY = PORTAL_CONFIG.height / 2 + 0.5;
