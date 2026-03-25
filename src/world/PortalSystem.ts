@@ -139,31 +139,55 @@ export default class PortalSystem {
   }
 
   private _teleportGrabbable(g: Grabbable, from: Portal, to: Portal, localCurr: THREE.Vector3): void {
+    // 1. Position: Mirrors the entry point relative to the portal center
+    // but ensures we are pushed out in front (Local Z > 0)
     const exitLocalPos = localCurr.clone();
-    exitLocalPos.x *= -1;
-    exitLocalPos.z *= -1;
-    exitLocalPos.z += Math.sign(exitLocalPos.z) * 0.8;
-
+    exitLocalPos.x *= -1; 
+    exitLocalPos.z *= -1; // Reflects back-crossing (-Z) into front (+Z)
+    exitLocalPos.z += 1.6; // Increased nudge to ensure large objects clear the frame
+    
     const exitWorldPos = to.mesh.localToWorld(exitLocalPos);
-
-    // Yaw offset logic:
+ 
+    // 2. Yaw Logic: Calculate rotation needed to face out of the new portal correctly
     const forward = new THREE.Vector3(0, 0, 1);
     const dirA = forward.clone().applyEuler(from.mesh.rotation);
     const dirB = forward.clone().applyEuler(to.mesh.rotation);
     const angleA = Math.atan2(dirA.x, dirA.z);
     const angleB = Math.atan2(dirB.x, dirB.z);
     const deltaYaw = (angleB - angleA) + Math.PI;
-
+ 
+    // 3. Update Visuals
     g.mesh.position.copy(exitWorldPos);
-
+    g.mesh.rotation.y += deltaYaw;
+    g.mesh.updateMatrixWorld(true);
+ 
+    // 4. Update Physics Body
     if (g.rigidBody) {
       g.rigidBody.setTranslation(exitWorldPos, true);
-      // Wait, we also need to rotate the velocity by deltaYaw
-      const linvel = g.rigidBody.linvel();
-      const velVector = new THREE.Vector3(linvel.x, linvel.y, linvel.z);
+      
+      const worldQuat = new THREE.Quaternion();
+      g.mesh.getWorldQuaternion(worldQuat);
+      g.rigidBody.setRotation(worldQuat, true);
+ 
+      // Preserve absolute speed but rotate momentum vector
+      const vel = g.rigidBody.linvel();
+      const threeVel = new THREE.Vector3(vel.x, vel.y, vel.z);
       const euler = new THREE.Euler(0, deltaYaw, 0, 'YXZ');
-      velVector.applyEuler(euler);
-      g.rigidBody.setLinvel(velVector, true);
+      threeVel.applyEuler(euler);
+      g.rigidBody.setLinvel(threeVel, true);
+ 
+      // Rotate spin vector too
+      const angVel = g.rigidBody.angvel();
+      const threeAngVel = new THREE.Vector3(angVel.x, angVel.y, angVel.z);
+      threeAngVel.applyEuler(euler);
+      g.rigidBody.setAngvel(threeAngVel, true);
+ 
+      g.rigidBody.wakeUp();
+    }
+    
+    // Ensure the prevPos is updated immediately too
+    if (g.mesh.userData.prevPos) {
+      g.mesh.userData.prevPos.copy(exitWorldPos);
     }
   }
 

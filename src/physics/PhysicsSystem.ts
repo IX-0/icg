@@ -133,11 +133,15 @@ export class PhysicsSystem {
         colliderDesc = RAPIER.ColliderDesc.ball(0.5);
     }
 
-    colliderDesc.setFriction(0.5);
-    colliderDesc.setRestitution(0.2);
+    colliderDesc.setFriction(PHYSICS_CONFIG.friction);
+    colliderDesc.setRestitution(0.1);
 
     const collider = this.world.createCollider(colliderDesc, rigidBody);
     
+    // Add damping to stabilize objects and prevent infinite rolling
+    rigidBody.setLinearDamping(0.5);
+    rigidBody.setAngularDamping(1.0);
+
     return { body: rigidBody, collider };
   }
 

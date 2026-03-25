@@ -16,6 +16,7 @@ export default class Lighter extends Grabbable {
     // Custom hold positioning: closer, off to the side, slightly angled
     this.holdPosition.set(0.3, -0.2, -0.5);
     this.holdRotation.set(0, -Math.PI / 4, 0);
+    this.placementYOffset = 0.25;
 
     // Body
     const bodyGeo = new THREE.BoxGeometry(0.2, 0.4, 0.1);

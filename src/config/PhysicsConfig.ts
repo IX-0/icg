@@ -1,7 +1,7 @@
 export const PHYSICS_CONFIG = {
   gravity: 20.0,
-  friction: 5.0,
-  throwForce: 3.0,
+  friction: 6.0,   // Increased slightly
+  throwForce: 7.0, // Reduced from 10.0 for better control
 };
 
 export type PhysicsConfig = typeof PHYSICS_CONFIG;

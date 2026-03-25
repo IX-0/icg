@@ -12,7 +12,8 @@ export default class WaterBucket extends Grabbable {
     
     // Custom hold positioning
     this.holdPosition.set(0.4, -0.6, -1.0);
-    this.holdRotation.set(-0.2, 0, 0); // Tilted slightly upwards/forward
+    this.holdRotation.set(-0.2, 0, 0); 
+    this.placementYOffset = 0.3;
 
     // Bucket body
     const bodyGeo = new THREE.CylinderGeometry(0.3, 0.25, 0.5, 16);
