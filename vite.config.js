@@ -16,7 +16,6 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: resolve(__dirname, 'index.html'),
-        portal: resolve(__dirname, 'portal_example.html'),
       }
     }
   }
